@@ -105,6 +105,22 @@ extension Trip {
     }
 }
 
+extension Stop {
+    /// How you're getting here from `previous`: your choice, or the typical way from the route data.
+    func legSummary(from previous: Stop) -> (mode: TransportMode, km: Double, hours: Double, typicalGBP: Double, override: Double?) {
+        let km = Geo.distanceKm(previous.geoPoint, geoPoint)
+        let style = trip?.travelStyle ?? .budget
+        let typical = Costs.db.estimateLeg(from: previous.name, fromCountry: previous.countryCode, to: name, toCountry: countryCode,
+                                           distanceKm: km, style: style)
+        if transportModeIsAuto {
+            return (typical.mode, km, typical.hours, typical.cost, legCostOverride)
+        }
+        let cost = transportMode == typical.mode ? typical.cost : Costs.db.estimateLeg(mode: transportMode, distanceKm: km, country: countryCode, style: style)
+        let hours = transportMode == typical.mode ? typical.hours : Geo.estimatedHours(km: km, mode: transportMode)
+        return (transportMode, km, hours, cost, legCostOverride)
+    }
+}
+
 enum MapMath {
     static func region(for coords: [CLLocationCoordinate2D], minSpan: Double = 0.4) -> MKCoordinateRegion? {
         guard let first = coords.first else { return nil }

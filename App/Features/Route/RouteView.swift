@@ -173,8 +173,7 @@ struct RouteSummaryHeader: View {
     }
 
     private var weeksText: String {
-        let w = Double(trip.totalNights) / 7
-        return w >= 1 ? String(format: "≈ %.0f weeks", w) : ""
+        trip.totalNights >= 7 ? Fmt.nights(trip.totalNights) : ""
     }
 
     private var totalKm: Double {
@@ -185,6 +184,7 @@ struct RouteSummaryHeader: View {
 }
 
 struct StopRow: View {
+    @EnvironmentObject private var rates: CurrencyService
     let stop: Stop
     let index: Int
     let dates: ScheduledDates?
@@ -193,11 +193,12 @@ struct StopRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if let previous, stop.status != .skipped {
-                let km = Geo.distanceKm(previous.geoPoint, stop.geoPoint)
+                let leg = stop.legSummary(from: previous)
+                let home = stop.trip?.homeCurrency ?? "GBP"
                 HStack(spacing: 6) {
-                    Image(systemName: stop.transportMode.symbol)
-                    Text("\(stop.transportMode.label) · \(Fmt.km(km)) · ~\(Fmt.hours(Geo.estimatedHours(km: km, mode: stop.transportMode)))")
-                    if stop.transportCost > 0 { Text("· \(Fmt.money(stop.transportCost, stop.trip?.homeCurrency ?? "GBP"))") }
+                    Image(systemName: leg.mode.symbol)
+                    Text("\(leg.mode.label) · \(Fmt.km(leg.km)) · ~\(Fmt.hours(leg.hours))")
+                    Text("· \(Fmt.money(leg.override ?? rates.convert(leg.typicalGBP, from: "GBP", to: home), home))")
                 }
                 .font(.caption2)
                 .foregroundStyle(.secondary)

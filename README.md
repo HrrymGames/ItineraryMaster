@@ -6,7 +6,7 @@ A native iPhone app (SwiftUI) for planning and running a months-long gap year. I
 |---|---|
 | **Map** | Your whole route on an interactive map, with numbered stops, travelled and planned legs, and pins for saved hostels and activities. Tap **+** to search for a place or drop a pin anywhere. |
 | **Route** | Drag to reorder stops and swipe to skip or delete them. Set the nights for each stop and the dates update automatically. **Get back on route** lets you say where you are now and how long you're staying, and the rest of the trip moves to fit. |
-| **Saved** | Your TikTok inbox. Share a TikTok to **Save to Itinerary** (or copy the link and tap **Paste**). The app gets the caption, creator and thumbnail. It then sorts the video on the device into itinerary, packing, activities, stays, work & volunteering, budget, food, transport, tips or visa, and spots the places and prices mentioned. In one tap you can link the video to a stop, add the place to your route, or send its packing items to your list. |
+| **Saved** | A **Map** showing just the outlines of your countries, each coloured and tappable to open its videos. **Folders** for Route, Budget, Tour ideas, Packing ideas, Hostels & stays, Work & volunteering and Other, plus a folder for each country. Then the full list. Your TikTok inbox: Share a TikTok to **Save to Itinerary** (or copy the link and tap **Paste**). The app gets the caption, creator and thumbnail. It then sorts the video on the device into itinerary, packing, activities, stays, work & volunteering, budget, food, transport, tips or visa, and spots the places and prices mentioned. In one tap you can link the video to a stop, add the place to your route, or send its packing items to your list. |
 | **Packing** | Packing lists (starter lists for backpackers included) with packed progress, weights, product links and a "to buy" total. There's also a **To-do before I go** checklist. |
 | **Budget** | Your total budget, what you've spent, what's left, and **how much you can spend per day** for the rest of the trip. The plan is each country's nights × its daily budget, plus flights, insurance, gear and travel between stops. You can log spending in any currency, and it's converted automatically. Includes charts and a currency converter. |
 
@@ -21,6 +21,19 @@ Every **country** has offline facts, your daily budget for it, GOV.UK visa and s
 - plug types and which side of the road they drive on
 - emergency numbers, tipping customs and the best time to visit
 - the typical daily cost for a backpacker
+
+### Researched South-East Asia costs
+- **Budget/Flashpacker toggle:** pick your travel style and every figure below switches to match.
+- **What the budget is built from:**
+  - beds × nights. Your booked hostel is used first, then the average of your saved hostels, then the typical price for that city.
+  - daily food, getting around and necessities for each country
+  - every tour you add
+  - the usual way backpackers travel each leg: sleeper trains, slow boats, buses, ferries or flights
+  - fixed costs: return flights London ⇄ Bangkok, insurance, visas for your route, eSIMs, IDPs (Vietnam needs the 1968 one), vaccines and gear
+- **Your own figures:** switch off anything you don't need, or type your own price.
+- **Tours at a stop:** pick from about 110 researched tours, e.g. the Ha Giang Loop, Khao Sok, Ha Long Bay, PADI on Koh Tao or Angkor passes. Or type any activity and you get a typical price for that kind of thing, plus a "Search current price" button.
+- **Country pages:** each has Videos, Rules, Money, Stops and Facts tabs. **Rules** covers entry forms (TDAC, MDAC, eTravel, e-VOA…), visa rules for UK passports, laws that are easy to break by accident, and scooter rules.
+- **Sources:** all figures are typical 2025–26 prices, checked October 2026. See [docs/data-sources.md](docs/data-sources.md).
 
 ### Offline
 Everything you add is stored on your phone, along with the country guides, packing lists, budget maths (using the last saved exchange rates) and route editing, so none of these need signal. These need internet: map tiles for areas you haven't looked at yet, searching for new places, downloading TikTok details, Wikipedia info and updating exchange rates. Links you save offline are kept and processed automatically once you're back online.

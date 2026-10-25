@@ -213,7 +213,7 @@ struct NextUpCard: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("You're in \(cur.name) \(CountryStore.shared.flag(cur.countryCode))").font(.headline)
                             if let next, let d = schedule[next.id] {
-                                Label("Next: \(next.name) · \(Fmt.day.string(from: d.arrival))", systemImage: next.transportMode.symbol)
+                                Label("Next: \(next.name) · \(Fmt.day.string(from: d.arrival))", systemImage: next.legSummary(from: cur).mode.symbol)
                                     .font(.caption).foregroundStyle(.secondary)
                             } else {
                                 Text("Last stop of the trip!").font(.caption).foregroundStyle(.secondary)
