@@ -1,0 +1,26 @@
+name: TikTok live check
+
+# Checks TikTok's public endpoints still behave the way the app expects.
+# Never blocks the IPA build - it's purely informational.
+on:
+  push:
+    paths:
+      - "scripts/tiktok_live_check.sh"
+      - "App/Services/NetworkServices.swift"
+      - ".github/workflows/tiktok-check.yml"
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: "Extra TikTok links to test (space separated)"
+        required: false
+        default: ""
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          URLS: ${{ github.event.inputs.urls }}
+        run: bash scripts/tiktok_live_check.sh $URLS
