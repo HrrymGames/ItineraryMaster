@@ -65,7 +65,7 @@ struct RootView: View {
 
     /// Screens the CI simulator check can open directly (launch arg `-startTab <name>`).
     enum PreviewScreen: String, Identifiable {
-        case stop, country, video, budgetAdd
+        case stop, country, video, budgetAdd, countryRules, countryMoney, addTour, stopLater
         var id: String { rawValue }
     }
 
@@ -154,6 +154,18 @@ struct RootView: View {
             }
         case .budgetAdd:
             ExpenseEditor(trip: trip, expense: nil)
+        case .countryRules:
+            NavigationStack { CountryDetailView(code: "VN", initialTab: .rules) }
+        case .countryMoney:
+            NavigationStack { CountryDetailView(code: "TH", initialTab: .money) }
+        case .addTour:
+            if let stop = trip.orderedStops.first(where: { $0.name == "Hanoi" }) ?? trip.orderedStops.first {
+                TourPickerView(stop: stop)
+            }
+        case .stopLater:
+            if let stop = trip.orderedStops.first(where: { $0.name == "Luang Prabang" }) ?? trip.orderedStops.last {
+                NavigationStack { StopDetailView(stop: stop) }
+            }
         }
     }
 

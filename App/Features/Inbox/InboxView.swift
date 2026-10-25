@@ -15,6 +15,31 @@ struct InboxView: View {
     @State private var search = ""
     @State private var showAddLink = false
     @State private var showHelp = false
+    @State private var mode: SavedMode = .map
+    @State private var openCountry: String?
+
+    enum SavedMode: String, CaseIterable, Identifiable {
+        case map, folders, all
+        var id: String { rawValue }
+        var label: String { self == .map ? "Map" : (self == .folders ? "Folders" : "All") }
+    }
+
+    /// Countries with saved videos or route stops, for the map and folders.
+    private var mapCountries: [String] {
+        var seen = Set<String>()
+        let fromVideos = videos.flatMap { $0.countryCodes + [$0.stop?.countryCode].compactMap { $0 } }
+        return (trip.countryCodesInRoute + fromVideos).filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
+
+    private var countryCounts: [String: Int] {
+        var out: [String: Int] = [:]
+        for v in videos {
+            var codes = Set(v.countryCodes)
+            if let c = v.stop?.countryCode, !c.isEmpty { codes.insert(c) }
+            for c in codes { out[c, default: 0] += 1 }
+        }
+        return out
+    }
 
     private var filtered: [SavedVideo] {
         let q = search.lowercased()
@@ -62,11 +87,26 @@ struct InboxView: View {
                         Button { showHelp = true } label: { Image(systemName: "questionmark.circle") }
                             .buttonStyle(.borderless)
                     }
-                    filterBar
+                    Picker("View", selection: $mode) {
+                        ForEach(SavedMode.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    if mode == .all { filterBar }
                 }
                 .listRowSeparator(.hidden)
 
-                if videos.isEmpty {
+                if mode == .map {
+                    Section {
+                        CountryOutlineMap(codes: mapCountries, counts: countryCounts) { openCountry = $0 }
+                            .frame(height: 340)
+                            .listRowInsets(EdgeInsets())
+                    } footer: {
+                        Text("Tap a country to see its videos, rules, money and stops. Pinch to zoom.")
+                    }
+                    countryFolderList
+                } else if mode == .folders {
+                    FolderGrid(videos: videos, countries: mapCountries, counts: countryCounts, trip: trip) { openCountry = $0 }
+                } else if videos.isEmpty {
                     Section {
                         SaveHowToView()
                     }
@@ -93,6 +133,10 @@ struct InboxView: View {
             }
             .listStyle(.insetGrouped)
             .searchable(text: $search, prompt: "Search captions, places, notes")
+            .onChange(of: search) { _, q in if !q.isEmpty { mode = .all } }
+            .navigationDestination(item: $openCountry) { code in
+                CountryDetailView(code: code, initialTab: .videos)
+            }
             .navigationTitle("Saved")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -120,6 +164,25 @@ struct InboxView: View {
                         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showHelp = false } } }
                 }
                 .presentationDetents([.medium, .large])
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var countryFolderList: some View {
+        if !mapCountries.isEmpty {
+            Section("Country folders") {
+                ForEach(mapCountries, id: \.self) { code in
+                    Button { openCountry = code } label: {
+                        HStack {
+                            Text(CountryStore.shared.flag(code)).font(.title3)
+                            Text(CountryStore.shared.name(code)).foregroundStyle(.primary)
+                            Spacer()
+                            Text("\(countryCounts[code] ?? 0) videos").font(.caption).foregroundStyle(.secondary)
+                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                        }
+                    }
+                }
             }
         }
     }

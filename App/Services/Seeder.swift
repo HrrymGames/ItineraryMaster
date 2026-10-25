@@ -99,8 +99,8 @@ enum Seeder {
         var stops: [String: Stop] = [:]
         for (i, r) in route.enumerated() {
             let s = Stop(name: r.0, latitude: r.2, longitude: r.3, countryCode: r.1, nights: r.4, order: i)
-            s.transportMode = r.5
-            s.transportCost = r.6
+            // Leave transport on "typical" so the researched route data is used.
+            _ = (r.5, r.6)
             s.trip = trip
             context.insert(s)
             stops[r.0] = s
@@ -128,20 +128,15 @@ enum Seeder {
         item("Luang Prabang", .activity, "Kuang Si Falls")
         item("Vang Vieng", .activity, "Blue Lagoon & tubing")
         item("Hanoi", .hostel, "Little Charm Hanoi Hostel", price: 8)
-        item("Hanoi", .tour, "Ha Giang Loop (easy rider)", price: 180, cur: "USD", notes: "4 days, book 1 week ahead")
+        item("Hanoi", .tour, "Ha Giang Loop - easy rider (3-4 days)", price: 160, notes: "Book a week ahead; leaves from Ha Giang town")
+        item("Ha Long Bay", .tour, "Lan Ha Bay cruise (2 days, 1 night)", price: 115)
+        item("Siem Reap", .activity, "Angkor pass - 3 days", price: 48)
+        item("Luang Prabang", .hostel, "Spicy Laos Backpackers", price: 6)
         item("Hoi An", .activity, "Tailor-made suit + lantern boat")
         item("Bali", .job, "Hostel bar job (Canggu)", notes: "Ask around - casual cash work, check visa rules!")
         item("Bali", .activity, "Mount Batur sunrise trek", price: 35, cur: "USD")
 
-        let lines: [(String, BudgetCategory, Double)] = [
-            ("Flight London → Bangkok", .flights, 520), ("Flight home", .flights, 480),
-            ("Travel insurance (6 months)", .insurance, 280), ("Backpack & gear", .gear, 180), ("Visas (VN e-visa, KH, LA)", .visas, 110)
-        ]
-        for l in lines {
-            let b = BudgetLine(name: l.0, category: l.1, amount: l.2, currency: "GBP")
-            b.trip = trip
-            context.insert(b)
-        }
+        // Flights, insurance, visas etc. are added automatically by BudgetSync from researched figures.
         let spent: [(String, BudgetCategory, Double, String, Int, String)] = [
             ("Hostel x4", .accommodation, 1680, "THB", -6, "TH"), ("Street food", .food, 950, "THB", -5, "TH"),
             ("Grand Palace", .activities, 500, "THB", -4, "TH"), ("Sleeper train", .transport, 900, "THB", -2, "TH"),
@@ -176,6 +171,8 @@ enum Seeder {
             VideoImporter.apply(caption: c.1, to: v, trip: trip)
         }
         trip.normalizeOrder()
+        try? context.save()
+        BudgetSync.syncAutoLines(trip, context: context)
         try? context.save()
     }
 }

@@ -11,6 +11,7 @@ final class Trip {
     var name: String = "My Gap Year"
     var startDate: Date = Date()
     var homeCurrency: String = "GBP"
+    var travelStyleRaw: String = TravelStyle.budget.rawValue
     var totalBudget: Double = 0
     var createdAt: Date = Date()
 
@@ -26,6 +27,11 @@ final class Trip {
     }
 
     var orderedStops: [Stop] { stops.sorted { $0.order < $1.order } }
+
+    var travelStyle: TravelStyle {
+        get { TravelStyle(rawValue: travelStyleRaw) ?? .budget }
+        set { travelStyleRaw = newValue.rawValue }
+    }
 
     /// Arrival/departure for every stop, keyed by stop id.
     func schedule() -> [UUID: ScheduledDates] {
@@ -82,6 +88,10 @@ final class Stop {
     var transportModeRaw: String = TransportMode.bus.rawValue
     var transportCost: Double = 0
     var transportNotes: String = ""
+    /// true = use the typical way of getting here from the route data.
+    var transportModeIsAuto: Bool = true
+    /// The user's own cost for getting here (home currency); nil = typical cost.
+    var transportCostOverride: Double?
     var wikiSummary: String?
     @Attribute(.externalStorage) var wikiImage: Data?
     var createdAt: Date = Date()
@@ -112,6 +122,11 @@ final class Stop {
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+
+    /// The user's leg cost, including values saved by older versions in `transportCost`.
+    var legCostOverride: Double? {
+        transportCostOverride ?? (transportCost > 0 ? transportCost : nil)
     }
 
     var geoPoint: GeoPoint { GeoPoint(latitude: latitude, longitude: longitude) }
@@ -264,6 +279,10 @@ final class PlaceItem {
     var notes: String = ""
     var rating: Int = 0
     var isBooked: Bool = false
+    /// Hostels: nights staying here (nil = the whole stop).
+    var nights: Int?
+    /// The price was filled in from typical figures rather than typed.
+    var priceIsEstimate: Bool = false
     var latitude: Double?
     var longitude: Double?
     var createdAt: Date = Date()
@@ -332,6 +351,8 @@ final class SavedVideo {
     var fetchError: String?
     /// Whether that failure is worth retrying automatically (no signal, TikTok busy).
     var fetchErrorIsTemporary: Bool = false
+    /// Folder chosen by the user (nil = suggested from the caption).
+    var folderRaw: String?
     var savedAt: Date = Date()
     var stop: Stop?
 
@@ -349,6 +370,11 @@ final class SavedVideo {
     var fetchState: FetchState {
         get { FetchState(rawValue: fetchStateRaw) ?? .pending }
         set { fetchStateRaw = newValue.rawValue }
+    }
+
+    var folder: VideoFolder {
+        get { folderRaw.flatMap(VideoFolder.init(rawValue:)) ?? VideoFolder.suggested(for: categories) }
+        set { folderRaw = newValue.rawValue }
     }
 
     var displayTitle: String {
@@ -431,6 +457,15 @@ final class BudgetLine {
     var amount: Double = 0
     var currency: String = "GBP"
     var countryCode: String?
+    /// Set for lines the app generates from researched figures (flights, insurance, visas…).
+    var autoKey: String?
+    var note: String = ""
+    var group: String = ""
+    var isIncluded: Bool = true
+    /// The user changed the amount, so syncing won't overwrite it.
+    var amountEdited: Bool = false
+    /// The user switched it on/off themselves.
+    var includeOverridden: Bool = false
     var trip: Trip?
 
     init(name: String, category: BudgetCategory, amount: Double, currency: String) {

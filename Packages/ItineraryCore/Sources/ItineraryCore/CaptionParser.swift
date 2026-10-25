@@ -555,3 +555,48 @@ public struct OEmbedResponse: Codable, Equatable, Sendable {
         self.html = html
     }
 }
+
+/// The folders saved videos are filed into (alongside automatic country folders).
+public enum VideoFolder: String, Codable, CaseIterable, Sendable, Identifiable {
+    case route, budget, tours, packing, stays, work, other
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .route: return "Route"
+        case .budget: return "Budget"
+        case .tours: return "Tour ideas"
+        case .packing: return "Packing ideas"
+        case .stays: return "Hostels & stays"
+        case .work: return "Work & volunteering"
+        case .other: return "Other"
+        }
+    }
+
+    public var symbol: String {
+        switch self {
+        case .route: return "map.fill"
+        case .budget: return "sterlingsign.circle.fill"
+        case .tours: return "figure.hiking"
+        case .packing: return "backpack.fill"
+        case .stays: return "bed.double.fill"
+        case .work: return "hands.sparkles.fill"
+        case .other: return "tray.fill"
+        }
+    }
+
+    /// Best folder for what the caption parser found.
+    public static func suggested(for categories: [VideoCategory]) -> VideoFolder {
+        guard let first = categories.first else { return .other }
+        switch first {
+        case .itinerary, .transport: return .route
+        case .budget: return .budget
+        case .activities: return .tours
+        case .packing: return .packing
+        case .accommodation: return .stays
+        case .work: return .work
+        case .food, .tips, .visa: return .other
+        }
+    }
+}

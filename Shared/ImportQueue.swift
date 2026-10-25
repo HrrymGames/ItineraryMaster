@@ -36,6 +36,8 @@ struct PendingImport: Codable, Equatable {
     var url: String
     var note: String?
     var date: Date
+    /// VideoFolder raw value chosen in the share sheet.
+    var folder: String?
 }
 
 enum ImportQueue {

@@ -106,8 +106,9 @@ enum VideoImporter {
         let pending = ImportQueue.drain()
         var added: [SavedVideo] = []
         for p in pending {
-            if let v = add(urlString: p.url, note: p.note, context: context), v.fetchState == .pending {
-                added.append(v)
+            if let v = add(urlString: p.url, note: p.note, context: context) {
+                if let f = p.folder { v.folderRaw = f }
+                if v.fetchState == .pending { added.append(v) }
             }
         }
         for v in added { await process(v, trip: trip, context: context) }

@@ -63,7 +63,7 @@ struct VideoDetailView: View {
                 }
             }
 
-            Section("Category") {
+            Section("Topics (auto-detected)") {
                 FlowLayout(spacing: 8) {
                     ForEach(VideoCategory.allCases) { c in
                         let on = video.categories.contains(c)
@@ -81,6 +81,42 @@ struct VideoDetailView: View {
             }
 
             Section {
+                Picker(selection: Binding(get: { video.folder }, set: { video.folder = $0 })) {
+                    ForEach(VideoFolder.allCases) { f in Label(f.label, systemImage: f.symbol).tag(f) }
+                } label: {
+                    Label("Folder", systemImage: "folder.fill")
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Country folders").font(.caption).foregroundStyle(.secondary)
+                    FlowLayout(spacing: 6) {
+                        ForEach(video.countryCodes, id: \.self) { code in
+                            Button {
+                                video.countryCodes.removeAll { $0 == code }
+                            } label: {
+                                ChipView(title: "\(CountryStore.shared.flag(code)) \(CountryStore.shared.name(code)) ✕", color: .blue, selected: true)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        Menu {
+                            let route = trip?.countryCodesInRoute ?? []
+                            if !route.isEmpty {
+                                Section("On your route") {
+                                    ForEach(route.filter { !video.countryCodes.contains($0) }, id: \.self) { c in
+                                        Button("\(CountryStore.shared.flag(c)) \(CountryStore.shared.name(c))") { video.countryCodes.append(c) }
+                                    }
+                                }
+                            }
+                            Section("South-East Asia") {
+                                ForEach(["TH", "VN", "KH", "LA", "ID", "MY", "SG", "PH", "MM"].filter { !video.countryCodes.contains($0) && !route.contains($0) }, id: \.self) { c in
+                                    Button("\(CountryStore.shared.flag(c)) \(CountryStore.shared.name(c))") { video.countryCodes.append(c) }
+                                }
+                            }
+                        } label: {
+                            ChipView(title: "+ Country", symbol: "globe", color: .blue)
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
                 Picker("Linked to stop", selection: Binding(get: { video.stop?.id }, set: { id in
                     video.stop = stops.first { $0.id == id }
                     if video.stop != nil { video.isSorted = true }

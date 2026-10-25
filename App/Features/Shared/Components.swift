@@ -33,6 +33,26 @@ enum Theme {
         }
     }
 
+    static func color(for folder: VideoFolder) -> Color {
+        switch folder {
+        case .route: return .blue
+        case .budget: return .mint
+        case .tours: return .green
+        case .packing: return .brown
+        case .stays: return .indigo
+        case .work: return .teal
+        case .other: return .gray
+        }
+    }
+
+    /// Distinct fills for countries on the Saved map.
+    static let countryPalette: [Color] = [
+        Color(red: 0.94, green: 0.33, blue: 0.42), Color(red: 0.20, green: 0.60, blue: 0.86), Color(red: 0.18, green: 0.80, blue: 0.44),
+        Color(red: 0.61, green: 0.35, blue: 0.71), Color(red: 0.95, green: 0.77, blue: 0.06), Color(red: 0.90, green: 0.49, blue: 0.13),
+        Color(red: 0.10, green: 0.74, blue: 0.61), Color(red: 0.20, green: 0.29, blue: 0.37), Color(red: 0.91, green: 0.30, blue: 0.24),
+        Color(red: 0.36, green: 0.68, blue: 0.89), Color(red: 0.56, green: 0.27, blue: 0.68), Color(red: 0.15, green: 0.68, blue: 0.38)
+    ]
+
     static func color(for section: PlaceSection) -> Color {
         switch section {
         case .stay: return .indigo
@@ -85,7 +105,7 @@ enum Fmt {
         MoneyFormat.string(amount, currency: currency)
     }
 
-    static func nights(_ n: Int) -> String { n == 1 ? "1 night" : "\(n) nights" }
+    static func nights(_ n: Int) -> String { DurationFormat.nights(n) }
 
     static func km(_ km: Double) -> String {
         km < 10 ? String(format: "%.1f km", km) : "\(Int(km.rounded())) km"

@@ -26,20 +26,25 @@ enum BackupService {
                                 photos: s.sortedPhotos.map(\.data),
                                 items: s.items.map { i in
                                     PlaceItemDTO(id: i.id, kind: i.kindRaw, name: i.name, url: i.url, price: i.price, currency: i.currency,
-                                                 notes: i.notes, rating: i.rating, isBooked: i.isBooked, latitude: i.latitude, longitude: i.longitude)
-                                })
+                                                 notes: i.notes, rating: i.rating, isBooked: i.isBooked, latitude: i.latitude, longitude: i.longitude,
+                                                 nights: i.nights, priceIsEstimate: i.priceIsEstimate)
+                                },
+                                transportModeIsAuto: s.transportModeIsAuto, transportCostOverride: s.transportCostOverride)
                     },
                     budgetLines: t.budgetLines.map {
-                        BudgetLineDTO(id: $0.id, name: $0.name, category: $0.categoryRaw, amount: $0.amount, currency: $0.currency, countryCode: $0.countryCode)
+                        BudgetLineDTO(id: $0.id, name: $0.name, category: $0.categoryRaw, amount: $0.amount, currency: $0.currency, countryCode: $0.countryCode,
+                                      autoKey: $0.autoKey, note: $0.note, group: $0.group, isIncluded: $0.isIncluded,
+                                      amountEdited: $0.amountEdited, includeOverridden: $0.includeOverridden)
                     },
                     expenses: t.expenses.map {
                         ExpenseDTO(id: $0.id, title: $0.title, category: $0.categoryRaw, amount: $0.amount, currency: $0.currency, date: $0.date, countryCode: $0.countryCode)
-                    })
+                    },
+                    travelStyle: t.travelStyleRaw)
             },
             videos: videos.map { v in
                 VideoDTO(id: v.id, url: v.urlString, caption: v.caption, author: v.author, thumbnailURL: v.thumbnailURL,
                          categories: v.categoriesRaw, countryCodes: v.countryCodes, placeNames: v.placeNames, notes: v.notes,
-                         isSorted: v.isSorted, savedAt: v.savedAt, stopID: v.stop?.id)
+                         isSorted: v.isSorted, savedAt: v.savedAt, stopID: v.stop?.id, folder: v.folderRaw)
             },
             packingLists: lists.sorted { $0.order < $1.order }.map { l in
                 PackingListDTO(id: l.id, name: l.name, symbol: l.symbol, items: l.items.map { i in
@@ -60,6 +65,7 @@ enum BackupService {
         for t in file.trips {
             let trip = Trip(name: t.name, startDate: t.startDate, homeCurrency: t.homeCurrency, totalBudget: t.totalBudget)
             trip.id = t.id
+            if let style = t.travelStyle { trip.travelStyleRaw = style }
             context.insert(trip)
             for s in t.stops {
                 let stop = Stop(name: s.name, latitude: s.latitude, longitude: s.longitude, countryCode: s.countryCode, nights: s.nights, order: s.order)
@@ -71,6 +77,8 @@ enum BackupService {
                 stop.transportCost = s.transportCost
                 stop.transportNotes = s.transportNotes
                 stop.wikiSummary = s.wikiSummary
+                stop.transportModeIsAuto = s.transportModeIsAuto ?? true
+                stop.transportCostOverride = s.transportCostOverride
                 stop.trip = trip
                 context.insert(stop)
                 stopsByID[s.id] = stop
@@ -86,6 +94,8 @@ enum BackupService {
                     item.isBooked = i.isBooked
                     item.latitude = i.latitude
                     item.longitude = i.longitude
+                    item.nights = i.nights
+                    item.priceIsEstimate = i.priceIsEstimate ?? false
                     item.stop = stop
                     context.insert(item)
                 }
@@ -94,6 +104,12 @@ enum BackupService {
                 let line = BudgetLine(name: b.name, category: BudgetCategory(rawValue: b.category) ?? .other, amount: b.amount, currency: b.currency)
                 line.id = b.id
                 line.countryCode = b.countryCode
+                line.autoKey = b.autoKey
+                line.note = b.note ?? ""
+                line.group = b.group ?? ""
+                line.isIncluded = b.isIncluded ?? true
+                line.amountEdited = b.amountEdited ?? false
+                line.includeOverridden = b.includeOverridden ?? false
                 line.trip = trip
                 context.insert(line)
             }
@@ -120,6 +136,7 @@ enum BackupService {
             video.title = v.caption.isEmpty ? "" : CaptionParser.title(from: v.caption)
             video.fetchState = v.caption.isEmpty ? .pending : .fetched
             if let sid = v.stopID { video.stop = stopsByID[sid] }
+            video.folderRaw = v.folder
             context.insert(video)
         }
         for (n, l) in file.packingLists.enumerated() {

@@ -76,11 +76,12 @@ final class ShareModel: ObservableObject {
     @Published var link: String?
     @Published var sharedText = ""
     @Published var note = ""
+    @Published var folder: VideoFolder?
     var onFinish: () -> Void = {}
 
     func save() {
         guard let link else { return }
-        let ok = ImportQueue.append(PendingImport(url: link, note: note.isEmpty ? nil : note, date: Date()))
+        let ok = ImportQueue.append(PendingImport(url: link, note: note.isEmpty ? nil : note, date: Date(), folder: folder?.rawValue))
         if ok {
             state = .saved
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { self.onFinish() }
@@ -117,6 +118,25 @@ struct ShareCard: View {
                     Text(model.link ?? "")
                         .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Folder (optional - otherwise sorted automatically)").font(.caption).foregroundStyle(.secondary)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(VideoFolder.allCases) { f in
+                                    Button {
+                                        model.folder = model.folder == f ? nil : f
+                                    } label: {
+                                        Label(f.label, systemImage: f.symbol)
+                                            .font(.caption.weight(.semibold))
+                                            .padding(.horizontal, 10).padding(.vertical, 6)
+                                            .background(model.folder == f ? accent : Color(uiColor: .tertiarySystemFill), in: Capsule())
+                                            .foregroundStyle(model.folder == f ? Color.white : Color.primary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
                     TextField("Add a note (optional)", text: $model.note, axis: .vertical)
                         .lineLimit(1...4)
                         .padding(10)

@@ -105,7 +105,7 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" simbuild/Build/Products/Debug-iphonesimulator/ItineraryMaster.app
           mkdir -p shots
-          for TAB in map route inbox packing budget more stop country video budgetAdd; do
+          for TAB in map route inbox packing budget more stop stopLater country countryRules countryMoney addTour video budgetAdd; do
             xcrun simctl terminate "$UDID" com.hrrymgames.itinerarymaster || true
             xcrun simctl launch "$UDID" com.hrrymgames.itinerarymaster -demoData -startTab "$TAB"
             sleep 12

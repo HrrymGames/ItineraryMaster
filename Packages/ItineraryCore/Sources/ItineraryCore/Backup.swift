@@ -48,8 +48,10 @@ public struct TripDTO: Codable, Equatable, Sendable {
     public var budgetLines: [BudgetLineDTO]
     public var expenses: [ExpenseDTO]
 
+    public var travelStyle: String?
+
     public init(id: UUID, name: String, startDate: Date, homeCurrency: String, totalBudget: Double, stops: [StopDTO],
-                budgetLines: [BudgetLineDTO], expenses: [ExpenseDTO]) {
+                budgetLines: [BudgetLineDTO], expenses: [ExpenseDTO], travelStyle: String? = nil) {
         self.id = id
         self.name = name
         self.startDate = startDate
@@ -58,6 +60,7 @@ public struct TripDTO: Codable, Equatable, Sendable {
         self.stops = stops
         self.budgetLines = budgetLines
         self.expenses = expenses
+        self.travelStyle = travelStyle
     }
 }
 
@@ -79,9 +82,12 @@ public struct StopDTO: Codable, Equatable, Sendable {
     public var photos: [Data]
     public var items: [PlaceItemDTO]
 
+    public var transportModeIsAuto: Bool?
+    public var transportCostOverride: Double?
+
     public init(id: UUID, order: Int, name: String, latitude: Double, longitude: Double, countryCode: String, nights: Int,
                 status: String, pinnedArrival: Date?, notes: String, transportMode: String, transportCost: Double,
-                transportNotes: String, wikiSummary: String?, photos: [Data], items: [PlaceItemDTO]) {
+                transportNotes: String, wikiSummary: String?, photos: [Data], items: [PlaceItemDTO], transportModeIsAuto: Bool? = nil, transportCostOverride: Double? = nil) {
         self.id = id
         self.order = order
         self.name = name
@@ -98,6 +104,8 @@ public struct StopDTO: Codable, Equatable, Sendable {
         self.wikiSummary = wikiSummary
         self.photos = photos
         self.items = items
+        self.transportModeIsAuto = transportModeIsAuto
+        self.transportCostOverride = transportCostOverride
     }
 }
 
@@ -114,8 +122,11 @@ public struct PlaceItemDTO: Codable, Equatable, Sendable {
     public var latitude: Double?
     public var longitude: Double?
 
+    public var nights: Int?
+    public var priceIsEstimate: Bool?
+
     public init(id: UUID, kind: String, name: String, url: String, price: Double, currency: String, notes: String,
-                rating: Int, isBooked: Bool, latitude: Double?, longitude: Double?) {
+                rating: Int, isBooked: Bool, latitude: Double?, longitude: Double?, nights: Int? = nil, priceIsEstimate: Bool? = nil) {
         self.id = id
         self.kind = kind
         self.name = name
@@ -127,6 +138,8 @@ public struct PlaceItemDTO: Codable, Equatable, Sendable {
         self.isBooked = isBooked
         self.latitude = latitude
         self.longitude = longitude
+        self.nights = nights
+        self.priceIsEstimate = priceIsEstimate
     }
 }
 
@@ -138,13 +151,26 @@ public struct BudgetLineDTO: Codable, Equatable, Sendable {
     public var currency: String
     public var countryCode: String?
 
-    public init(id: UUID, name: String, category: String, amount: Double, currency: String, countryCode: String?) {
+    public var autoKey: String?
+    public var note: String?
+    public var group: String?
+    public var isIncluded: Bool?
+    public var amountEdited: Bool?
+    public var includeOverridden: Bool?
+
+    public init(id: UUID, name: String, category: String, amount: Double, currency: String, countryCode: String?, autoKey: String? = nil, note: String? = nil, group: String? = nil, isIncluded: Bool? = nil, amountEdited: Bool? = nil, includeOverridden: Bool? = nil) {
         self.id = id
         self.name = name
         self.category = category
         self.amount = amount
         self.currency = currency
         self.countryCode = countryCode
+        self.autoKey = autoKey
+        self.note = note
+        self.group = group
+        self.isIncluded = isIncluded
+        self.amountEdited = amountEdited
+        self.includeOverridden = includeOverridden
     }
 }
 
@@ -182,8 +208,10 @@ public struct VideoDTO: Codable, Equatable, Sendable {
     public var savedAt: Date
     public var stopID: UUID?
 
+    public var folder: String?
+
     public init(id: UUID, url: String, caption: String, author: String, thumbnailURL: String?, categories: [String],
-                countryCodes: [String], placeNames: [String], notes: String, isSorted: Bool, savedAt: Date, stopID: UUID?) {
+                countryCodes: [String], placeNames: [String], notes: String, isSorted: Bool, savedAt: Date, stopID: UUID?, folder: String? = nil) {
         self.id = id
         self.url = url
         self.caption = caption
@@ -196,6 +224,7 @@ public struct VideoDTO: Codable, Equatable, Sendable {
         self.isSorted = isSorted
         self.savedAt = savedAt
         self.stopID = stopID
+        self.folder = folder
     }
 }
 

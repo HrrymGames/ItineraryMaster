@@ -128,6 +128,12 @@ final class CaptionParserTests: XCTestCase {
         XCTAssertEqual(a.hashtags, ["vietnamtravel", "backpacking", "itinerary"])
     }
 
+    func testSuggestedFolders() {
+        XCTAssertEqual(VideoFolder.suggested(for: parser.analyze("2 weeks in Vietnam itinerary").categories), .route)
+        XCTAssertEqual(VideoFolder.suggested(for: parser.analyze("best hostel in #thailand").categories), .stays)
+        XCTAssertEqual(VideoFolder.suggested(for: []), .other)
+    }
+
     func testHashtagOnlyCountry() {
         let a = parser.analyze("best hostel I've ever stayed at 😍 #thailand #hostellife")
         XCTAssertEqual(a.countryCodes, ["TH"])

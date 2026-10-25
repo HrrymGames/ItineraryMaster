@@ -7,6 +7,7 @@ import ItineraryCore
 struct StopDetailView: View {
     @Bindable var stop: Stop
     @EnvironmentObject private var app: AppState
+    @EnvironmentObject private var rates: CurrencyService
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
@@ -21,6 +22,7 @@ struct StopDetailView: View {
     @State private var confirmDelete = false
     @State private var openVideo: SavedVideo?
     @State private var showAddAfter = false
+    @State private var showTourPicker = false
 
     private var trip: Trip? { stop.trip }
     private var dates: ScheduledDates? { trip?.schedule()[stop.id] }
@@ -60,7 +62,8 @@ struct StopDetailView: View {
                     HStack {
                         Text("Nights")
                         Spacer()
-                        Text("\(stop.nights)").foregroundStyle(.secondary)
+                        Text(stop.nights >= 7 ? "\(stop.nights) · \(Fmt.nights(stop.nights))" : Fmt.nights(stop.nights))
+                            .foregroundStyle(.secondary)
                     }
                 }
                 if let dates {
@@ -77,28 +80,22 @@ struct StopDetailView: View {
                 if let pinned = stop.pinnedArrival {
                     DatePicker("Arrive on", selection: Binding(get: { pinned }, set: { stop.pinnedArrival = $0 }), displayedComponents: .date)
                 }
+                if let trip, stop.status != .skipped,
+                   let p = BudgetSync.plan(for: trip, rates: rates.rates).stops.first(where: { $0.id == stop.id.uuidString }) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Estimated cost here")
+                            Spacer()
+                            Text(Fmt.money(p.total, homeCurrency)).bold()
+                        }
+                        Text("Beds \(Fmt.money(p.accommodation.total, homeCurrency)) · food & daily \(Fmt.money(p.livingTotal, homeCurrency)) · tours \(Fmt.money(p.activities, homeCurrency)) · getting here \(Fmt.money(p.legCost, homeCurrency))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
             }
 
             if let trip, let prev = trip.previousActiveStop(before: stop) {
-                Section("Getting here from \(prev.name)") {
-                    let km = Geo.distanceKm(prev.geoPoint, stop.geoPoint)
-                    Picker("Transport", selection: Binding(get: { stop.transportMode }, set: { stop.transportMode = $0 })) {
-                        ForEach(TransportMode.allCases) { m in Label(m.label, systemImage: m.symbol).tag(m) }
-                    }
-                    LabeledContent("Distance", value: "\(Fmt.km(km)) · ~\(Fmt.hours(Geo.estimatedHours(km: km, mode: stop.transportMode)))")
-                    HStack {
-                        Text("Cost (\(homeCurrency))")
-                        Spacer()
-                        TextField("0", value: $stop.transportCost, format: .number.precision(.fractionLength(0...2)))
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(maxWidth: 120)
-                    }
-                    TextField("Notes (e.g. 12Go sleeper bus, 8pm)", text: $stop.transportNotes, axis: .vertical)
-                    Link(destination: rome2rioURL(from: prev)) {
-                        Label("Compare routes on Rome2Rio", systemImage: "arrow.triangle.swap")
-                    }
-                }
+                GettingHereSection(stop: stop, previous: prev, trip: trip)
             }
 
             Section("About \(stop.name)") {
@@ -138,8 +135,10 @@ struct StopDetailView: View {
                                 }
                         }
                         HStack {
-                            Button { newItemSection = section } label: {
-                                Label("Add", systemImage: "plus")
+                            Button {
+                                if section == .todo { showTourPicker = true } else { newItemSection = section }
+                            } label: {
+                                Label(section == .todo ? "Add tour / activity" : (section == .stay ? "Add hostel" : "Add"), systemImage: "plus")
                             }
                             .buttonStyle(.borderless)
                             Spacer()
@@ -220,6 +219,9 @@ struct StopDetailView: View {
         .sheet(item: $newItemSection) { section in
             PlaceItemEditor(stop: stop, item: nil, section: section)
         }
+        .sheet(isPresented: $showTourPicker) {
+            TourPickerView(stop: stop)
+        }
         .sheet(item: $viewingPhoto) { photo in
             PhotoViewer(photo: photo)
         }
@@ -248,12 +250,6 @@ struct StopDetailView: View {
 
     private var googleMapsURL: URL {
         URL(string: "https://www.google.com/maps/search/?api=1&query=\(stop.latitude),\(stop.longitude)")!
-    }
-
-    private func rome2rioURL(from prev: Stop) -> URL {
-        let a = prev.name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? prev.name
-        let b = stop.name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? stop.name
-        return URL(string: "https://www.rome2rio.com/map/\(a)/\(b)") ?? URL(string: "https://www.rome2rio.com")!
     }
 
     private func openInMaps() {
@@ -313,7 +309,15 @@ struct PlaceItemRow: View {
                 }
                 HStack(spacing: 6) {
                     Text(item.kind.label)
-                    if item.price > 0 { Text("· \(Fmt.money(item.price, item.currency))") }
+                    if item.price > 0 {
+                        if item.kind == .hostel {
+                            let n = item.nights ?? item.stop?.nights ?? 1
+                            Text("· \(Fmt.money(item.price, item.currency))/night × \(n) = \(Fmt.money(item.price * Double(n), item.currency))")
+                        } else {
+                            Text("· \(Fmt.money(item.price, item.currency))")
+                        }
+                        if item.priceIsEstimate { Text("typical").italic() }
+                    }
                     if item.rating > 0 { Text("· " + String(repeating: "★", count: item.rating)).foregroundStyle(.yellow) }
                     if item.coordinate != nil { Image(systemName: "mappin") }
                 }
