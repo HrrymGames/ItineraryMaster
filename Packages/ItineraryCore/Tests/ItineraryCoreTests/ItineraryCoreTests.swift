@@ -60,6 +60,15 @@ final class CurrencyTests: XCTestCase {
         XCTAssertNil(r.convert(1, from: "XXX", to: "GBP"))
         XCTAssertEqual(r.convertOrSame(7, from: "XXX", to: "GBP"), 7)
     }
+
+    func testFillingRebasesMissingCurrencies() {
+        let live = ExchangeRates(base: "EUR", rates: ["USD": 1.1])
+        let builtIn = ExchangeRates(base: "GBP", rates: ["EUR": 1.2, "VND": 30000, "USD": 1.3])
+        let merged = live.filling(from: builtIn)
+        XCTAssertEqual(merged.rates["USD"], 1.1)                       // live value kept
+        XCTAssertEqual(merged.rates["VND"]!, 25000, accuracy: 0.001)   // 30000 / 1.2
+        XCTAssertEqual(merged.rates["GBP"]!, 1 / 1.2, accuracy: 0.0001)
+    }
 }
 
 final class BudgetTests: XCTestCase {

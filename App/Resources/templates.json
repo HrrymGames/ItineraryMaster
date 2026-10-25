@@ -1,0 +1,137 @@
+{
+ "packing": [
+  {
+   "name": "Main backpack",
+   "symbol": "backpack.fill",
+   "items": {
+    "Clothes": [
+     "T-shirts x5",
+     "Shorts x2",
+     "Light trousers",
+     "Underwear x7",
+     "Socks x5",
+     "Swimwear",
+     "Light jumper / fleece",
+     "Packable rain jacket",
+     "Sleepwear",
+     "Sarong / scarf (temples)"
+    ],
+    "Footwear": [
+     "Trainers / walking shoes",
+     "Flip-flops",
+     "Sandals"
+    ],
+    "Toiletries": [
+     "Toothbrush & toothpaste",
+     "Shampoo bar",
+     "Deodorant",
+     "Sun cream SPF50",
+     "Insect repellent (DEET)",
+     "Razor",
+     "Hairbrush",
+     "Lip balm with SPF",
+     "Contact lenses / glasses"
+    ],
+    "Sleep & hostel": [
+     "Padlock",
+     "Earplugs",
+     "Eye mask",
+     "Quick-dry towel",
+     "Silk sleeping bag liner",
+     "Packing cubes",
+     "Laundry bag",
+     "Carabiners"
+    ],
+    "First aid": [
+     "Plasters",
+     "Paracetamol / ibuprofen",
+     "Rehydration sachets",
+     "Imodium",
+     "Antihistamines",
+     "Antiseptic wipes",
+     "Prescription meds",
+     "Motion sickness tablets"
+    ]
+   }
+  },
+  {
+   "name": "Daypack & tech",
+   "symbol": "bolt.fill",
+   "items": {
+    "Tech": [
+     "Phone + charger",
+     "Power bank",
+     "Universal adapter",
+     "Headphones",
+     "Kindle / e-reader",
+     "Spare cable",
+     "Waterproof phone pouch"
+    ],
+    "Daypack": [
+     "Reusable water bottle",
+     "Sunglasses",
+     "Hat / cap",
+     "Headtorch",
+     "Snacks",
+     "Hand sanitiser",
+     "Tissues / toilet roll",
+     "Dry bag"
+    ]
+   }
+  },
+  {
+   "name": "Documents & money",
+   "symbol": "doc.text.fill",
+   "items": {
+    "Documents": [
+     "Passport (6+ months valid)",
+     "Passport photos x4",
+     "Printed insurance details",
+     "Copies of passport (paper + cloud)",
+     "Visa printouts",
+     "Driving licence + IDP",
+     "Vaccination record",
+     "Emergency contacts card"
+    ],
+    "Money": [
+     "Travel debit card (Wise/Revolut/Monzo)",
+     "Backup card (kept separately)",
+     "Some US dollars in cash",
+     "Money belt / hidden pouch"
+    ]
+   }
+  }
+ ],
+ "checklist": {
+  "3+ months before": [
+   "Check passport expires 6+ months after you return",
+   "Book travel insurance (covering activities like diving/motorbikes)",
+   "Check visa rules for each country",
+   "Book a travel clinic appointment for vaccinations",
+   "Start saving with a budget target",
+   "Research working holiday visas (AU/NZ/CA) if wanted"
+  ],
+  "1 month before": [
+   "Get a fee-free travel card (Wise/Revolut/Monzo/Starling)",
+   "Tell your bank you're travelling",
+   "Buy an eSIM or plan for local SIMs",
+   "Download offline Google/Apple Maps areas",
+   "Scan passport & documents to the cloud",
+   "Set up 2FA backup codes (in case you lose your phone)",
+   "Book first few nights' accommodation"
+  ],
+  "Week before": [
+   "Download playlists, films and podcasts",
+   "Print key bookings",
+   "Share itinerary with family",
+   "Pack and weigh your bag",
+   "Export a backup from this app"
+  ],
+  "On the road": [
+   "Back up photos weekly",
+   "Register with travel advice alerts",
+   "Keep emergency cash hidden",
+   "Check next border crossing requirements"
+  ]
+ }
+}

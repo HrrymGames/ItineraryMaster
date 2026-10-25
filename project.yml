@@ -26,6 +26,7 @@ targets:
     platform: iOS
     sources:
       - path: App
+      - path: Shared
     dependencies:
       - package: ItineraryCore
       - target: ShareExtension
@@ -72,6 +73,7 @@ targets:
     platform: iOS
     sources:
       - path: ShareExtension
+      - path: Shared
     dependencies:
       - package: ItineraryCore
     entitlements:

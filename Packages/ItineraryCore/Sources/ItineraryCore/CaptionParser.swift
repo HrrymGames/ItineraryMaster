@@ -141,7 +141,7 @@ public struct CaptionParser: Sendable {
     /// Words that are also place names; only matched when capitalised in the caption.
     static let ambiguous: Set<String> = [
         "nice", "chad", "turkey", "china", "georgia", "jordan", "split", "male", "bath", "reading",
-        "victoria", "mali", "cork", "sale", "batman", "hue", "como", "ella", "goa"
+        "victoria", "mali", "cork", "sale", "batman", "hue", "como", "ella", "goa", "ios", "kas", "rio", "leon", "flores", "trinidad", "antigua", "salvador", "granada", "lagos", "santiago", "cali", "nadi", "pai", "nara", "paros"
     ]
 
     public init(gazetteer: [GazetteerEntry]) {
@@ -199,7 +199,7 @@ public struct CaptionParser: Sendable {
                     }
                 }
                 if let p = pos {
-                    let id = entry.kind.rawValue + entry.countryCode + entry.name
+                    let id = entry.countryCode + entry.name.lowercased()
                     if seen.insert(id).inserted {
                         let m = PlaceMatch(name: entry.name, countryCode: entry.countryCode, kind: entry.kind,
                                            latitude: entry.latitude, longitude: entry.longitude)
@@ -218,7 +218,7 @@ public struct CaptionParser: Sendable {
             if let known = gazetteer.first(where: { $0.name.lowercased() == key }) {
                 let m = PlaceMatch(name: known.name, countryCode: known.countryCode, kind: known.kind,
                                    latitude: known.latitude, longitude: known.longitude)
-                if seen.insert(known.kind.rawValue + known.countryCode + known.name).inserted {
+                if seen.insert(known.countryCode + known.name.lowercased()).inserted {
                     places.append(m)
                     positions[m] = Int.max - 1
                 }

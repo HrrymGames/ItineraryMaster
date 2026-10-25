@@ -29,6 +29,16 @@ public struct ExchangeRates: Codable, Equatable, Sendable {
         convert(amount, from: from, to: to) ?? amount
     }
 
+    /// Adds any currencies this table is missing using cross rates from `other`
+    /// (e.g. live rates topped up with built-in ones for exotic currencies).
+    public func filling(from other: ExchangeRates) -> ExchangeRates {
+        var r = rates
+        for code in other.rates.keys where r[code] == nil {
+            if let v = other.convert(1, from: base, to: code) { r[code] = v }
+        }
+        return ExchangeRates(base: base, rates: r, fetchedAt: fetchedAt)
+    }
+
     /// Rough built-in rates (per 1 GBP) used before the first online refresh.
     /// They only need to be in the right ballpark for planning.
     public static let fallbackGBP = ExchangeRates(
