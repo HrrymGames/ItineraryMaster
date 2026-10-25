@@ -1,0 +1,123 @@
+name: Build IPA
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-tests:
+    name: Core logic tests (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: swift test
+        working-directory: Packages/ItineraryCore
+        run: swift test
+
+  ipa:
+    name: Build unsigned IPA
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install tools
+        run: brew install xcodegen ldid
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build (device, unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ItineraryMaster.xcodeproj \
+            -scheme ItineraryMaster \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build.log | grep -E "error:|warning: unre|BUILD (SUCCEEDED|FAILED)|\*\*" || true
+          test -d build/Build/Products/Release-iphoneos/ItineraryMaster.app || { echo "---- errors ----"; grep -E "error:" build.log | sort -u | head -80; exit 1; }
+
+      - name: Package IPA (embed entitlements with ldid)
+        run: |
+          APP=build/Build/Products/Release-iphoneos/ItineraryMaster.app
+          ldid -SShareExtension/ShareExtension.entitlements "$APP/PlugIns/ShareExtension.appex/ShareExtension"
+          ldid -SApp/ItineraryMaster.entitlements "$APP/ItineraryMaster"
+          rm -rf Payload && mkdir Payload
+          cp -R "$APP" Payload/
+          zip -qry ItineraryMaster.ipa Payload
+          ls -lh ItineraryMaster.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ItineraryMaster-ipa
+          path: ItineraryMaster.ipa
+
+      - name: Publish "latest" release
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag -y || true
+          gh release create latest ItineraryMaster.ipa \
+            --target "$GITHUB_SHA" \
+            --title "ItineraryMaster (latest build)" \
+            --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Download ItineraryMaster.ipa and install it with iLoader / SideStore." \
+            --latest
+
+  simulator-smoke:
+    name: Simulator launch check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          xcodebuild -project ItineraryMaster.xcodeproj -scheme ItineraryMaster -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath simbuild \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO build 2>&1 | tee sim.log | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
+          test -d simbuild/Build/Products/Debug-iphonesimulator/ItineraryMaster.app
+      - name: Launch with demo data and screenshot each tab
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k in sorted(d, reverse=True) if 'iOS' in k for x in d[k] if x['name'].startswith('iPhone')))")
+          echo "Simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" simbuild/Build/Products/Debug-iphonesimulator/ItineraryMaster.app
+          mkdir -p shots
+          for TAB in map route inbox packing budget more; do
+            xcrun simctl terminate "$UDID" com.hrrymgames.itinerarymaster || true
+            xcrun simctl launch "$UDID" com.hrrymgames.itinerarymaster -demoData -startTab "$TAB"
+            sleep 12
+            xcrun simctl io "$UDID" screenshot "shots/$TAB.png"
+            if ! xcrun simctl spawn "$UDID" launchctl list | grep -q itinerarymaster; then
+              echo "App is not running on tab $TAB (crash?)"
+              xcrun simctl spawn "$UDID" log show --last 2m --predicate 'process == "ItineraryMaster"' | tail -80 || true
+              exit 1
+            fi
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulator-screenshots
+          path: shots

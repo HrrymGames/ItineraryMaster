@@ -1,0 +1,11 @@
+.DS_Store
+*.xcodeproj
+*.xcworkspace
+build/
+simbuild/
+DerivedData/
+.build/
+.swiftpm/
+Payload/
+*.ipa
+Packages/ItineraryCore/Package.resolved
