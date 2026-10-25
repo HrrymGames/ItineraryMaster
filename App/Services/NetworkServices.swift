@@ -50,50 +50,147 @@ enum NLPlaceTagger {
     }
 }
 
-// MARK: - Video metadata (TikTok / YouTube oEmbed, no API key needed)
+// MARK: - Video metadata (no API keys needed)
 
 struct VideoMetadata {
     var caption: String
     var author: String
     var thumbnailURL: String?
-    var resolvedURL: URL
+    /// Clean link to the post (no tracking query), when we could work it out.
+    var canonicalURL: URL?
+}
+
+/// Why a video's details couldn't be fetched, in words the user can act on.
+enum VideoFetchError: Error, LocalizedError, Equatable {
+    case offline
+    case notFound
+    case blocked(Int)
+    case unrecognisedLink
+    case unsupportedSite
+    case failed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .offline: return "No connection - will retry automatically."
+        case .notFound: return "TikTok says this post is private, deleted or not available in your region."
+        case .blocked(let code): return "TikTok didn't send the details (\(code == 0 ? "busy" : "error \(code)")). Try again in a minute."
+        case .unrecognisedLink: return "That doesn't look like a link to a TikTok post."
+        case .unsupportedSite: return "Details can't be fetched for this site - add a caption yourself."
+        case .failed(let message): return message
+        }
+    }
+
+    /// Worth retrying in the background later.
+    var isTemporary: Bool {
+        switch self {
+        case .offline, .blocked: return true
+        default: return false
+        }
+    }
+
+    static func from(_ error: Error) -> VideoFetchError {
+        if let e = error as? VideoFetchError { return e }
+        if let e = error as? URLError {
+            switch e.code {
+            case .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotFindHost, .cannotConnectToHost,
+                 .dnsLookupFailed, .dataNotAllowed, .internationalRoamingOff, .callIsActive, .secureConnectionFailed:
+                return .offline
+            case .unsupportedURL, .badURL:
+                return .unrecognisedLink
+            default:
+                return .failed("Couldn't load the details (\(e.localizedDescription)).")
+            }
+        }
+        return .failed(error.localizedDescription)
+    }
 }
 
 enum VideoMetadataService {
-    static func fetch(_ url: URL) async throws -> VideoMetadata {
-        var target = url
-        let host = (url.host ?? "").lowercased()
+    /// TikTok serves full post pages (with the caption data) to normal browsers,
+    /// so page requests look like mobile Safari.
+    static let browserSession: URLSession = {
+        // Ephemeral: no cookies kept between launches, so a bad session can't get stuck.
+        let c = URLSessionConfiguration.ephemeral
+        c.timeoutIntervalForRequest = 20
+        c.timeoutIntervalForResource = 40
+        c.waitsForConnectivity = false
+        c.httpAdditionalHeaders = [
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-GB,en;q=0.9"
+        ]
+        return URLSession(configuration: c)
+    }()
 
-        // Short share links (vm.tiktok.com / vt.tiktok.com) redirect to the full video URL.
-        if host.hasPrefix("vm.") || host.hasPrefix("vt.") {
-            var req = URLRequest(url: url)
-            req.httpMethod = "GET"
-            if let result = try? await Net.session.data(for: req), let final = result.1.url {
-                var c = URLComponents(url: final, resolvingAgainstBaseURL: false)
-                c?.query = nil
-                target = c?.url ?? final
+    static func fetch(_ url: URL) async throws -> VideoMetadata {
+        do {
+            if TikTokLink.isTikTok(url) { return try await fetchTikTok(url) }
+            if (url.host ?? "").lowercased().contains("youtu") { return try await fetchYouTube(url) }
+        } catch {
+            throw VideoFetchError.from(error)
+        }
+        throw VideoFetchError.unsupportedSite
+    }
+
+    private static func fetchTikTok(_ url: URL) async throws -> VideoMetadata {
+        var post = TikTokLink.post(in: url.absoluteString)
+
+        // 1. Open the shared link itself. Short links (vm./vt./tiktok.com/t/) redirect
+        //    to the post page, which usually already holds everything we need.
+        let first = try await loadPage(url)
+        if post == nil {
+            post = TikTokLink.post(in: first.finalURL.absoluteString) ?? TikTokLink.post(inHTML: first.html)
+        }
+        if let item = TikTokPage.item(inHTML: first.html, preferredID: post?.id) {
+            return metadata(from: item, post: post)
+        }
+
+        // 2. Open the clean post URL for the id we found.
+        guard let post else { throw VideoFetchError.unrecognisedLink }
+        let second = try await loadPage(post.canonicalURL)
+        if let item = TikTokPage.item(inHTML: second.html, preferredID: post.id) {
+            return metadata(from: item, post: post)
+        }
+        if TikTokPage.looksLikeMissingPost(second.html) { throw VideoFetchError.notFound }
+        throw VideoFetchError.blocked(0)
+    }
+
+    private static func metadata(from item: TikTokItem, post: TikTokLink.Post?) -> VideoMetadata {
+        let author = item.author ?? post?.username ?? ""
+        let canonical = TikTokLink.Post(username: author.isEmpty ? nil : author, id: item.id, isPhoto: item.isPhoto).canonicalURL
+        return VideoMetadata(caption: item.caption, author: author, thumbnailURL: item.coverURL, canonicalURL: canonical)
+    }
+
+    private static func loadPage(_ url: URL) async throws -> (html: String, finalURL: URL) {
+        let (data, response) = try await browserSession.data(from: url)
+        if let http = response as? HTTPURLResponse {
+            switch http.statusCode {
+            case 200..<300: break
+            case 404, 410: throw VideoFetchError.notFound
+            default: throw VideoFetchError.blocked(http.statusCode)
             }
         }
+        return (String(decoding: data, as: UTF8.self), response.url ?? url)
+    }
 
-        let endpoint: URL?
-        if TikTokLink.isTikTok(target) {
-            endpoint = TikTokLink.oEmbedURL(for: target)
-        } else if host.contains("youtu") {
-            var c = URLComponents(string: "https://www.youtube.com/oembed")
-            c?.queryItems = [URLQueryItem(name: "url", value: target.absoluteString), URLQueryItem(name: "format", value: "json")]
-            endpoint = c?.url
-        } else {
-            endpoint = nil
+    private static func fetchYouTube(_ url: URL) async throws -> VideoMetadata {
+        var c = URLComponents(string: "https://www.youtube.com/oembed")
+        c?.queryItems = [URLQueryItem(name: "url", value: url.absoluteString), URLQueryItem(name: "format", value: "json")]
+        guard let endpoint = c?.url else { throw VideoFetchError.unrecognisedLink }
+        let (data, response) = try await Net.session.data(from: endpoint)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw http.statusCode == 404 || http.statusCode == 401 ? VideoFetchError.notFound : VideoFetchError.blocked(http.statusCode)
         }
-        guard let endpoint else {
-            throw URLError(.unsupportedURL)
-        }
-        let o = try await Net.json(OEmbedResponse.self, from: endpoint)
-        return VideoMetadata(caption: o.title ?? "", author: o.author_name ?? "", thumbnailURL: o.thumbnail_url, resolvedURL: target)
+        let o = try JSONDecoder().decode(OEmbedResponse.self, from: data)
+        return VideoMetadata(caption: o.title ?? "", author: o.author_name ?? "", thumbnailURL: o.thumbnail_url, canonicalURL: nil)
     }
 
     static func thumbnail(from string: String?) async -> Data? {
-        guard let string, let url = URL(string: string), let data = try? await Net.data(from: url) else { return nil }
+        guard let string, let url = URL(string: string),
+              let result = try? await browserSession.data(from: url) else { return nil }
+        let (data, response) = result
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) { return nil }
+        guard !data.isEmpty else { return nil }
         return ImageTools.downscaled(data, maxDimension: 720, quality: 0.75) ?? data
     }
 }

@@ -328,6 +328,10 @@ final class SavedVideo {
     var isSorted: Bool = false
     var isFavourite: Bool = false
     var fetchStateRaw: String = FetchState.pending.rawValue
+    /// Why the last fetch failed, shown to the user (nil when fine).
+    var fetchError: String?
+    /// Whether that failure is worth retrying automatically (no signal, TikTok busy).
+    var fetchErrorIsTemporary: Bool = false
     var savedAt: Date = Date()
     var stop: Stop?
 

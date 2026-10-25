@@ -7,6 +7,7 @@ on:
     paths:
       - "scripts/tiktok_live_check.sh"
       - "App/Services/NetworkServices.swift"
+      - "Packages/ItineraryCore/Sources/ItineraryCore/TikTokPage.swift"
       - ".github/workflows/tiktok-check.yml"
   workflow_dispatch:
     inputs:

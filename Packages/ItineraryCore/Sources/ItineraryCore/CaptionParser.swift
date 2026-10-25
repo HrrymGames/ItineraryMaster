@@ -385,9 +385,157 @@ public enum TikTokLink {
 
     /// The public oEmbed endpoint that returns title/author/thumbnail with no API key.
     public static func oEmbedURL(for url: URL) -> URL? {
-        var c = URLComponents(string: "https://www.tiktok.com/oembed")
-        c?.queryItems = [URLQueryItem(name: "url", value: url.absoluteString)]
-        return c?.url
+        // Encode the whole link (including its own ?, & and =) so it arrives as one value.
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-._~")
+        guard let value = url.absoluteString.addingPercentEncoding(withAllowedCharacters: allowed) else { return nil }
+        return URL(string: "https://www.tiktok.com/oembed?url=\(value)")
+    }
+
+    // MARK: Normalising share links
+
+    /// A post on TikTok: who posted it, its id, and whether it's a video or a photo carousel.
+    public struct Post: Equatable, Sendable {
+        public var username: String?
+        public var id: String
+        public var isPhoto: Bool
+
+        public init(username: String?, id: String, isPhoto: Bool) {
+            self.username = username
+            self.id = id
+            self.isPhoto = isPhoto
+        }
+
+        /// https://www.tiktok.com/@user/video/123 (no tracking query).
+        public var canonicalURL: URL {
+            URL(string: "https://www.tiktok.com/@\(username ?? "_")/\(isPhoto ? "photo" : "video")/\(id)")!
+        }
+    }
+
+    private static func firstMatch(_ pattern: String, in text: String, options: NSRegularExpression.Options = [.caseInsensitive]) -> [String]? {
+        guard let re = try? NSRegularExpression(pattern: pattern, options: options) else { return nil }
+        let ns = text as NSString
+        guard let m = re.firstMatch(in: text, range: NSRange(location: 0, length: ns.length)) else { return nil }
+        return (0..<m.numberOfRanges).map { i in
+            let r = m.range(at: i)
+            return r.location == NSNotFound ? "" : ns.substring(with: r)
+        }
+    }
+
+    /// Reads the post out of any full-form TikTok URL (or URL-like string).
+    /// Returns nil for short links (vm./vt./www.tiktok.com/t/…) that must be resolved first.
+    public static func post(in text: String) -> Post? {
+        if let g = firstMatch("/@([\\w.\\-]+)/(video|photo)/(\\d{6,})", in: text) {
+            return Post(username: g[1], id: g[3], isPhoto: g[2].lowercased() == "photo")
+        }
+        if let g = firstMatch("tiktok\\.com/v/(\\d{6,})", in: text) {
+            return Post(username: nil, id: g[1], isPhoto: false)
+        }
+        if let g = firstMatch("[?&](?:share_)?item_id=(\\d{6,})", in: text) {
+            return Post(username: nil, id: g[1], isPhoto: false)
+        }
+        if let g = firstMatch("tiktok\\.com/(?:embed(?:/v2)?|player/v1)/(\\d{6,})", in: text) {
+            return Post(username: nil, id: g[1], isPhoto: false)
+        }
+        return nil
+    }
+
+    /// True when the link is a short share link that redirects to the real post.
+    public static func needsResolving(_ url: URL) -> Bool {
+        guard isTikTok(url) else { return false }
+        return post(in: url.absoluteString) == nil
+    }
+
+    /// Finds the post a TikTok web page is about (canonical link, og:url, or first post path).
+    public static func post(inHTML html: String) -> Post? {
+        if let tag = metaTag(in: html, matching: "<link[^>]+rel=[\"']canonical[\"'][^>]*>"),
+           let href = attribute("href", in: tag), let p = post(in: href) { return p }
+        if let url = metaContent(in: html, property: "og:url"), let p = post(in: url) { return p }
+        return post(in: html)
+    }
+
+    /// Caption, image and title from a TikTok page's meta tags / embedded JSON.
+    public struct PageInfo: Equatable, Sendable {
+        public var caption: String?
+        public var imageURL: String?
+        public var title: String?
+    }
+
+    public static func pageInfo(inHTML html: String) -> PageInfo {
+        var caption: String?
+        // Embedded JSON has the exact caption ("desc":"…").
+        if let g = firstMatch("\"desc\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.){3,})\"", in: html, options: []) {
+            caption = jsonUnescape(g[1])
+        }
+        if caption == nil || caption?.isEmpty == true,
+           let d = metaContent(in: html, property: "og:description") ?? metaContent(in: html, name: "description") {
+            caption = cleanDescription(d)
+        }
+        return PageInfo(
+            caption: caption,
+            imageURL: metaContent(in: html, property: "og:image"),
+            title: metaContent(in: html, property: "og:title")
+        )
+    }
+
+    /// TikTok's og:description looks like `12K Likes, 300 Comments. TikTok video from Name (@user): "caption". song`.
+    public static func cleanDescription(_ d: String) -> String {
+        if let g = firstMatch("TikTok (?:video|photo)[^:]*:\\s*[\"“](.*)[\"”]", in: d, options: [.caseInsensitive, .dotMatchesLineSeparators]) {
+            return g[1].trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return d.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func metaTag(in html: String, matching pattern: String) -> String? {
+        firstMatch(pattern, in: html)?.first
+    }
+
+    static func metaContent(in html: String, property: String) -> String? {
+        let p = NSRegularExpression.escapedPattern(for: property)
+        guard let tag = metaTag(in: html, matching: "<meta[^>]+property=[\"']\(p)[\"'][^>]*>") else { return nil }
+        return attribute("content", in: tag).map(htmlUnescape)
+    }
+
+    static func metaContent(in html: String, name: String) -> String? {
+        let p = NSRegularExpression.escapedPattern(for: name)
+        guard let tag = metaTag(in: html, matching: "<meta[^>]+name=[\"']\(p)[\"'][^>]*>") else { return nil }
+        return attribute("content", in: tag).map(htmlUnescape)
+    }
+
+    static func attribute(_ name: String, in tag: String) -> String? {
+        if let g = firstMatch("\\s\(name)=\"([^\"]*)\"", in: tag) { return g[1] }
+        if let g = firstMatch("\\s\(name)='([^']*)'", in: tag) { return g[1] }
+        return nil
+    }
+
+    static func htmlUnescape(_ s: String) -> String {
+        var out = s
+        let named = ["&quot;": "\"", "&#39;": "'", "&apos;": "'", "&lt;": "<", "&gt;": ">", "&nbsp;": " "]
+        for (k, v) in named { out = out.replacingOccurrences(of: k, with: v) }
+        if let re = try? NSRegularExpression(pattern: "&#(x?)([0-9a-fA-F]+);") {
+            let ns = out as NSString
+            var result = ""
+            var last = 0
+            for m in re.matches(in: out, range: NSRange(location: 0, length: ns.length)) {
+                result += ns.substring(with: NSRange(location: last, length: m.range.location - last))
+                let hex = ns.substring(with: m.range(at: 1)).lowercased() == "x"
+                let digits = ns.substring(with: m.range(at: 2))
+                if let v = UInt32(digits, radix: hex ? 16 : 10), let scalar = UnicodeScalar(v) {
+                    result += String(Character(scalar))
+                } else {
+                    result += ns.substring(with: m.range)
+                }
+                last = m.range.location + m.range.length
+            }
+            result += ns.substring(from: last)
+            out = result
+        }
+        return out.replacingOccurrences(of: "&amp;", with: "&")
+    }
+
+    static func jsonUnescape(_ s: String) -> String {
+        let data = Data("\"\(s)\"".utf8)
+        return (try? JSONDecoder().decode(String.self, from: data)) ?? s
     }
 }
 

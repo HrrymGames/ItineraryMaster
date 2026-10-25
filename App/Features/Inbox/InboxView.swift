@@ -103,7 +103,7 @@ struct InboxView: View {
                             app.flash("Re-sorted \(videos.count) videos")
                         } label: { Label("Re-sort everything", systemImage: "wand.and.stars") }
                         Button {
-                            Task { await VideoImporter.retryPending(trip: trip, context: context) }
+                            Task { await VideoImporter.retryPending(trip: trip, context: context, includeAllFailures: true) }
                         } label: { Label("Retry failed downloads", systemImage: "arrow.clockwise") }
                     } label: { Image(systemName: "ellipsis.circle") }
                 }
@@ -195,8 +195,10 @@ struct VideoRow: View {
                         ProgressView().controlSize(.mini)
                         Text("Getting details…")
                     case .failed:
-                        Image(systemName: "wifi.exclamationmark").foregroundStyle(.orange)
-                        Text("Will retry when online")
+                        Image(systemName: video.fetchErrorIsTemporary ? "wifi.exclamationmark" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text(video.fetchError ?? "Couldn't get details - tap to retry")
+                            .lineLimit(2)
                     default:
                         if let stop = video.stop {
                             Image(systemName: "mappin.circle.fill").foregroundStyle(Theme.accent)

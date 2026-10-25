@@ -52,7 +52,9 @@ struct VideoDetailView: View {
                     HStack { ProgressView(); Text("Getting caption & thumbnail…").foregroundStyle(.secondary) }
                 } else if video.fetchState == .failed {
                     VStack(alignment: .leading, spacing: 8) {
-                        Label("Couldn't get the details - are you offline?", systemImage: "wifi.exclamationmark").foregroundStyle(.orange)
+                        Label(video.fetchError ?? "Couldn't get the details.",
+                              systemImage: video.fetchErrorIsTemporary ? "wifi.exclamationmark" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
                         HStack {
                             Button("Try again") { Task { await refetch() } }.buttonStyle(.bordered)
                             Button("Type caption") { draftCaption = video.caption; editingCaption = true }.buttonStyle(.bordered)
@@ -227,6 +229,8 @@ struct VideoDetailView: View {
         video.fetchState = .pending
         await VideoImporter.process(video, trip: trip, context: context)
         working = false
+        // It was a duplicate of a video already saved and has been merged into it.
+        if video.isDeleted || video.modelContext == nil { dismiss() }
     }
 
     private func addPacking(_ names: [String]) {

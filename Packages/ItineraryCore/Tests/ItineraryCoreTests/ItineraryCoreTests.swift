@@ -182,6 +182,92 @@ final class CaptionParserTests: XCTestCase {
         XCTAssertEqual(TikTokLink.firstURL(in: long)?.absoluteString, long)
         XCTAssertNil(TikTokLink.firstURL(in: "https://instagram.com/p/x"))
         XCTAssertTrue(TikTokLink.oEmbedURL(for: URL(string: long)!)!.absoluteString.hasPrefix("https://www.tiktok.com/oembed?url="))
+        // The link's own query must be encoded so it isn't split into separate parameters.
+        XCTAssertFalse(TikTokLink.oEmbedURL(for: URL(string: long)!)!.absoluteString.contains("?is_from_webapp"))
+    }
+}
+
+final class TikTokLinkTests: XCTestCase {
+    func testPostFromFullLinks() {
+        XCTAssertEqual(TikTokLink.post(in: "https://www.tiktok.com/@travel.with.me/video/7312345678901234567?is_from_webapp=1&sender_device=pc"),
+                       TikTokLink.Post(username: "travel.with.me", id: "7312345678901234567", isPhoto: false))
+        XCTAssertEqual(TikTokLink.post(in: "https://www.tiktok.com/@bali_guide/photo/7400000000000000001"),
+                       TikTokLink.Post(username: "bali_guide", id: "7400000000000000001", isPhoto: true))
+        XCTAssertEqual(TikTokLink.post(in: "https://m.tiktok.com/v/6718335390845095173.html")?.id, "6718335390845095173")
+        XCTAssertEqual(TikTokLink.post(in: "https://www.tiktok.com/embed/v2/6718335390845095173")?.id, "6718335390845095173")
+        XCTAssertEqual(TikTokLink.post(in: "https://www.tiktok.com/link/v2?aid=1988&share_item_id=7312345678901234567")?.id, "7312345678901234567")
+    }
+
+    func testShortLinksNeedResolving() {
+        XCTAssertTrue(TikTokLink.needsResolving(URL(string: "https://vm.tiktok.com/ZMabc123/")!))
+        XCTAssertTrue(TikTokLink.needsResolving(URL(string: "https://vt.tiktok.com/ZSabc123/")!))
+        XCTAssertTrue(TikTokLink.needsResolving(URL(string: "https://www.tiktok.com/t/ZT8abcDEF/")!))
+        XCTAssertFalse(TikTokLink.needsResolving(URL(string: "https://www.tiktok.com/@a/video/7312345678901234567")!))
+        XCTAssertFalse(TikTokLink.needsResolving(URL(string: "https://www.youtube.com/watch?v=x")!))
+    }
+
+    func testCanonicalURL() {
+        XCTAssertEqual(TikTokLink.Post(username: nil, id: "123456789", isPhoto: false).canonicalURL.absoluteString,
+                       "https://www.tiktok.com/@_/video/123456789")
+        XCTAssertEqual(TikTokLink.Post(username: "me", id: "123456789", isPhoto: true).canonicalURL.absoluteString,
+                       "https://www.tiktok.com/@me/photo/123456789")
+    }
+
+    func testShareSheetTextWithTLink() {
+        let text = "Check out this video! https://www.tiktok.com/t/ZT8abcDEF/ #fyp"
+        XCTAssertEqual(TikTokLink.firstURL(in: text)?.absoluteString, "https://www.tiktok.com/t/ZT8abcDEF/")
+    }
+
+    // Trimmed copy of the structure TikTok serves on post pages.
+    static let videoPage = """
+    <html><head><title>TikTok - Make Your Day</title></head><body>
+    <script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">{"__DEFAULT_SCOPE__":{"webapp.app-context":{"language":"en"},
+    "webapp.reflow.video.detail":{"itemInfo":{"itemStruct":{"id":"6718335390845095173",
+    "desc":"2 weeks in Vietnam \\u0026 Laos 🇻🇳 #vietnam #backpacking","author":{"uniqueId":"scout2015","nickname":"Scout"},
+    "video":{"id":"6718335390845095173","cover":"https://p16-sign.tiktokcdn-us.com/cover.image?x=1&y=2","originCover":"https://o"},
+    "challenges":[{"id":"1","desc":"Vietnam challenge","title":"vietnam"}]}}}}}</script></body></html>
+    """
+
+    static let photoPage = """
+    <script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">{"__DEFAULT_SCOPE__":{"webapp.video-detail":{"itemInfo":{"itemStruct":{
+    "id":7400000000000000001,"desc":"Packing list 🎒 - packing cubes, padlock","author":"bali_guide",
+    "imagePost":{"cover":{"imageURL":{"urlList":["https://img/cover1.jpeg","https://img/cover2.jpeg"]}},"images":[]}}}}}}</script>
+    """
+
+    func testParsesVideoPage() {
+        let item = TikTokPage.item(inHTML: Self.videoPage, preferredID: "6718335390845095173")
+        XCTAssertEqual(item, TikTokItem(id: "6718335390845095173", caption: "2 weeks in Vietnam & Laos 🇻🇳 #vietnam #backpacking",
+                                        author: "scout2015", coverURL: "https://p16-sign.tiktokcdn-us.com/cover.image?x=1&y=2", isPhoto: false))
+        // Without a preferred id it still picks the itemStruct, not a hashtag challenge.
+        XCTAssertEqual(TikTokPage.item(inHTML: Self.videoPage)?.author, "scout2015")
+    }
+
+    func testParsesPhotoPageWithNumericID() {
+        let item = TikTokPage.item(inHTML: Self.photoPage)
+        XCTAssertEqual(item?.id, "7400000000000000001")
+        XCTAssertEqual(item?.author, "bali_guide")
+        XCTAssertEqual(item?.coverURL, "https://img/cover1.jpeg")
+        XCTAssertEqual(item?.isPhoto, true)
+    }
+
+    func testMissingPostDetected() {
+        let empty = #"<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">{"__DEFAULT_SCOPE__":{"webapp.app-context":{"language":"en"}}}</script>"#
+        XCTAssertNil(TikTokPage.item(inHTML: empty))
+        XCTAssertTrue(TikTokPage.looksLikeMissingPost(empty))
+        XCTAssertFalse(TikTokPage.looksLikeMissingPost("<html>captcha</html>"))
+    }
+
+    func testOpenGraphFallback() {
+        let html = """
+        <link rel="canonical" href="https://www.tiktok.com/@nomad/video/7311111111111111111">
+        <meta property="og:description" content="12K Likes, 300 Comments. TikTok video from Nomad (@nomad): &quot;Hostels in Hanoi under &#36;10 #hanoi&quot;. original sound">
+        <meta property="og:image" content="https://img/og.jpg">
+        """
+        let item = TikTokPage.item(inHTML: html)
+        XCTAssertEqual(item?.id, "7311111111111111111")
+        XCTAssertEqual(item?.author, "nomad")
+        XCTAssertEqual(item?.caption, "Hostels in Hanoi under $10 #hanoi")
+        XCTAssertEqual(item?.coverURL, "https://img/og.jpg")
     }
 }
 

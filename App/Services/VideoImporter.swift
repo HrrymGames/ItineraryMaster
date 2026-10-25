@@ -11,8 +11,11 @@ enum VideoImporter {
         let found = TikTokLink.firstURL(in: raw) ?? TikTokLink.anyURL(in: raw) ?? URL(string: raw.trimmingCharacters(in: .whitespacesAndNewlines))
         guard let url = found, url.scheme?.hasPrefix("http") == true else { return nil }
         let key = url.absoluteString
+        let postID = TikTokLink.post(in: key)?.id
         let all = (try? context.fetch(FetchDescriptor<SavedVideo>())) ?? []
-        if let existing = all.first(where: { $0.urlString == key }) { return existing }
+        if let existing = all.first(where: { $0.urlString == key || (postID != nil && TikTokLink.post(in: $0.urlString)?.id == postID) }) {
+            return existing
+        }
         let video = SavedVideo(urlString: key)
         if let note, !note.isEmpty { video.notes = note }
         context.insert(video)
@@ -25,17 +28,37 @@ enum VideoImporter {
         guard let url = video.url else { return }
         do {
             let meta = try await VideoMetadataService.fetch(url)
+            if let canonical = meta.canonicalURL?.absoluteString, canonical != video.urlString {
+                // A short link that turned out to be a post we already have: keep the older one.
+                let all = (try? context.fetch(FetchDescriptor<SavedVideo>())) ?? []
+                let id = TikTokLink.post(in: canonical)?.id
+                if let dupe = all.first(where: { $0.id != video.id && TikTokLink.post(in: $0.urlString)?.id == id && id != nil }) {
+                    if dupe.notes.isEmpty { dupe.notes = video.notes }
+                    context.delete(video)
+                    try? context.save()
+                    return
+                }
+                video.urlString = canonical
+            }
             video.caption = meta.caption
             video.author = meta.author
             video.thumbnailURL = meta.thumbnailURL
-            video.thumbnail = await VideoMetadataService.thumbnail(from: meta.thumbnailURL)
+            if let thumb = await VideoMetadataService.thumbnail(from: meta.thumbnailURL) {
+                video.thumbnail = thumb
+            }
             video.fetchState = .fetched
-        } catch let error as URLError where error.code == .unsupportedURL {
-            // Not a site with a public oEmbed (e.g. Instagram) - keep it as a plain link.
-            video.fetchState = .manual
+            video.fetchError = nil
+            video.fetchErrorIsTemporary = false
         } catch {
-            if video.caption.isEmpty {
+            let reason = VideoFetchError.from(error)
+            if reason == .unsupportedSite {
+                // e.g. Instagram - keep it as a plain link the user can caption themselves.
+                video.fetchState = .manual
+                video.fetchError = nil
+            } else if video.caption.isEmpty {
                 video.fetchState = .failed
+                video.fetchError = reason.errorDescription
+                video.fetchErrorIsTemporary = reason.isTemporary
             }
         }
         if !video.caption.isEmpty {
@@ -65,10 +88,15 @@ enum VideoImporter {
         }
     }
 
-    /// Retries anything that failed or never got fetched (e.g. saved offline).
-    static func retryPending(trip: Trip?, context: ModelContext) async {
+    /// Retries anything never fetched, or that failed for a temporary reason (no signal, TikTok busy).
+    /// Permanent failures (deleted post, bad link) wait for the user to tap "Try again".
+    static func retryPending(trip: Trip?, context: ModelContext, includeAllFailures: Bool = false) async {
         let all = (try? context.fetch(FetchDescriptor<SavedVideo>())) ?? []
-        for v in all where v.fetchState == .pending || v.fetchState == .failed {
+        let due = all.filter {
+            $0.fetchState == .pending ||
+                ($0.fetchState == .failed && (includeAllFailures || $0.fetchErrorIsTemporary || $0.fetchError == nil))
+        }
+        for v in due {
             await process(v, trip: trip, context: context)
         }
     }
