@@ -61,6 +61,13 @@ struct RootView: View {
     @EnvironmentObject private var currency: CurrencyService
     @Query(sort: \Trip.createdAt) private var trips: [Trip]
     @State private var didBootstrap = false
+    @State private var previewScreen: PreviewScreen?
+
+    /// Screens the CI simulator check can open directly (launch arg `-startTab <name>`).
+    enum PreviewScreen: String, Identifiable {
+        case stop, country, video, budgetAdd
+        var id: String { rawValue }
+    }
 
     var body: some View {
         Group {
@@ -84,6 +91,9 @@ struct RootView: View {
                 }
                 .sheet(isPresented: $app.showMore) {
                     MoreView(trip: trip)
+                }
+                .sheet(item: $previewScreen) { screen in
+                    previewSheet(screen, trip: trip)
                 }
             } else {
                 ProgressView()
@@ -117,9 +127,34 @@ struct RootView: View {
             Seeder.loadDemo(into: trip, context: context)
         }
         if let start = UserDefaults.standard.string(forKey: "startTab") {
-            if start == "more" { app.showMore = true } else if let tab = AppTab(rawValue: start) { app.tab = tab }
+            if start == "more" {
+                app.showMore = true
+            } else if let tab = AppTab(rawValue: start) {
+                app.tab = tab
+            } else if let screen = PreviewScreen(rawValue: start) {
+                app.tab = screen == .budgetAdd ? .budget : .map
+                previewScreen = screen
+            }
         }
         await onForeground()
+    }
+
+    @ViewBuilder
+    private func previewSheet(_ screen: PreviewScreen, trip: Trip) -> some View {
+        switch screen {
+        case .stop:
+            if let stop = trip.currentStop ?? trip.orderedStops.first {
+                NavigationStack { StopDetailView(stop: stop) }
+            }
+        case .country:
+            NavigationStack { CountryDetailView(code: trip.countryCodesInRoute.first ?? "TH") }
+        case .video:
+            if let v = try? context.fetch(FetchDescriptor<SavedVideo>()).first {
+                NavigationStack { VideoDetailView(video: v, trip: trip) }
+            }
+        case .budgetAdd:
+            ExpenseEditor(trip: trip, expense: nil)
+        }
     }
 
     @MainActor
