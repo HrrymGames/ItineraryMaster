@@ -348,7 +348,7 @@ public struct CaptionParser: Sendable {
         return items
     }
 
-    static func title(from text: String) -> String {
+    public static func title(from text: String) -> String {
         let noTags = text.replacingOccurrences(of: "#[\\p{L}\\p{N}_]+", with: "", options: .regularExpression)
         let firstLine = noTags.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty } ?? ""
         let trimmed = firstLine.trimmingCharacters(in: .whitespacesAndNewlines)
