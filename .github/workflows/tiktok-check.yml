@@ -8,6 +8,7 @@ on:
       - "scripts/tiktok_live_check.sh"
       - "App/Services/NetworkServices.swift"
       - "Packages/ItineraryCore/Sources/ItineraryCore/TikTokPage.swift"
+      - "Packages/ItineraryCore/Tests/ItineraryCoreTests/LiveTikTokTests.swift"
       - ".github/workflows/tiktok-check.yml"
   workflow_dispatch:
     inputs:
@@ -25,3 +26,17 @@ jobs:
       - env:
           URLS: ${{ github.event.inputs.urls }}
         run: bash scripts/tiktok_live_check.sh $URLS
+
+  swift-parser:
+    name: App parser against live TikTok pages
+    runs-on: ubuntu-latest
+    container: swift:6.1
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: swift test (live)
+        working-directory: Packages/ItineraryCore
+        env:
+          LIVE_TIKTOK: "1"
+          EXTRA_URLS: ${{ github.event.inputs.urls }}
+        run: swift test --filter LiveTikTokTests 2>&1 | grep -E "LIVE|Test Case|error|passed|failed|skipped" || true
