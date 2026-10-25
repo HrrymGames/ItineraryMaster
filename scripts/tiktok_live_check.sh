@@ -13,6 +13,7 @@ oembed() {
   out=$(curl -sS -A "$UA" -w '\n%{http_code}' --max-time 20 --get --data-urlencode "url=$url" https://www.tiktok.com/oembed)
   code=$(tail -n1 <<<"$out")
   echo "oEmbed [$code] for $url"
+  echo "   raw: $(head -n -1 <<<"$out" | head -c 400)"
   head -n -1 <<<"$out" | python3 -c 'import json,sys
 try:
     d=json.load(sys.stdin); print("   title:", (d.get("title") or "")[:90]); print("   author:", d.get("author_name")); print("   thumb:", bool(d.get("thumbnail_url")))
@@ -30,6 +31,8 @@ print('   html bytes:', len(h))
 for pat in [r'<link[^>]+rel="canonical"[^>]*>', r'<meta[^>]+property="og:url"[^>]*>', r'<meta[^>]+property="og:description"[^>]*>', r'<meta[^>]+property="og:image"[^>]*>']:
     m=re.search(pat,h); print('  ', pat.split('"')[1], '->', (m.group(0)[:160] if m else None))
 m=re.search(r'/@[\w.\-]+/(?:video|photo)/\d+',h); print('   first video path in body:', m.group(0) if m else None)
+for marker in ['__UNIVERSAL_DATA_FOR_REHYDRATION__','SIGI_STATE','"desc":','captcha','verify','og:','<title>']:
+    i=h.find(marker); print('   marker', marker, '->', i, repr(h[i:i+160]) if i>=0 else '')
 EOF
 }
 
@@ -43,6 +46,10 @@ echo "== oEmbed with m.tiktok.com form =="
 oembed "https://m.tiktok.com/v/6718335390845095173.html"
 echo "== Video page meta tags =="
 resolve "$VIDEO"
+echo "== oEmbed with no custom UA =="
+curl -sS --max-time 20 --get --data-urlencode "url=$VIDEO" -w '\n[%{http_code}]\n' https://www.tiktok.com/oembed | head -c 600; echo
+echo "== Other public videos via oEmbed =="
+for v in https://www.tiktok.com/@tiktok/video/7106594312292453675 https://www.tiktok.com/@khaby.lame/video/7088248234934766854 https://www.tiktok.com/@zachking/video/6768504823336815877; do oembed "$v"; done
 for u in "$@"; do
   echo "== Extra: $u =="
   resolve "$u"
