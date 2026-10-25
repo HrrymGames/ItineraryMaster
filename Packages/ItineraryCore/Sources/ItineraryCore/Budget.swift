@@ -4,7 +4,9 @@ public enum BudgetCategory: String, Codable, CaseIterable, Sendable, Identifiabl
     case accommodation
     case food
     case transport
+    case travel
     case activities
+    case necessities
     case flights
     case insurance
     case gear
@@ -18,10 +20,12 @@ public enum BudgetCategory: String, Codable, CaseIterable, Sendable, Identifiabl
         switch self {
         case .accommodation: return "Accommodation"
         case .food: return "Food & drink"
-        case .transport: return "Local transport"
+        case .transport: return "Getting around"
+        case .travel: return "Between stops"
         case .activities: return "Activities & tours"
+        case .necessities: return "Necessities & SIM"
         case .flights: return "Flights"
-        case .insurance: return "Insurance"
+        case .insurance: return "Insurance & health"
         case .gear: return "Gear"
         case .visas: return "Visas & fees"
         case .shopping: return "Shopping"
@@ -34,7 +38,9 @@ public enum BudgetCategory: String, Codable, CaseIterable, Sendable, Identifiabl
         case .accommodation: return "bed.double.fill"
         case .food: return "fork.knife"
         case .transport: return "bus.fill"
+        case .travel: return "point.topleft.down.to.point.bottomright.curvepath.fill"
         case .activities: return "figure.hiking"
+        case .necessities: return "basket.fill"
         case .flights: return "airplane"
         case .insurance: return "cross.case.fill"
         case .gear: return "backpack.fill"

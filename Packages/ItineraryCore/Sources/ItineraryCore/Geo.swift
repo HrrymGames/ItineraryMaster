@@ -25,10 +25,12 @@ public enum Geo {
     public static func estimatedHours(km: Double, mode: TransportMode) -> Double {
         switch mode {
         case .flight: return km / 700 + 3   // airport time
-        case .bus: return km / 55
-        case .train: return km / 70
-        case .car: return km / 65
+        case .bus, .sleeperBus: return km / 50
+        case .minibus: return km / 55
+        case .train, .sleeperTrain: return km / 60
+        case .car, .motorbike: return km / 55
         case .ferry: return km / 30 + 1
+        case .slowBoat: return km / 15
         case .walk: return km / 4.5
         case .other: return km / 50
         }
@@ -43,16 +45,35 @@ public enum Geo {
 }
 
 public enum TransportMode: String, Codable, CaseIterable, Sendable, Identifiable {
-    case flight, bus, train, car, ferry, walk, other
+    case flight, bus, sleeperBus, minibus, train, sleeperTrain, ferry, slowBoat, car, motorbike, walk, other
     public var id: String { rawValue }
-    public var label: String { rawValue.capitalized }
+    public var label: String {
+        switch self {
+        case .flight: return "Flight"
+        case .bus: return "Bus"
+        case .sleeperBus: return "Sleeper bus"
+        case .minibus: return "Minibus"
+        case .train: return "Train"
+        case .sleeperTrain: return "Sleeper train"
+        case .ferry: return "Ferry / boat"
+        case .slowBoat: return "Slow boat"
+        case .car: return "Car / taxi"
+        case .motorbike: return "Motorbike"
+        case .walk: return "Walk"
+        case .other: return "Other"
+        }
+    }
     public var symbol: String {
         switch self {
         case .flight: return "airplane"
-        case .bus: return "bus.fill"
+        case .bus, .minibus: return "bus.fill"
+        case .sleeperBus: return "bed.double.fill"
         case .train: return "tram.fill"
-        case .car: return "car.fill"
+        case .sleeperTrain: return "train.side.front.car"
         case .ferry: return "ferry.fill"
+        case .slowBoat: return "sailboat.fill"
+        case .car: return "car.fill"
+        case .motorbike: return "scooter"
         case .walk: return "figure.walk"
         case .other: return "arrow.triangle.swap"
         }

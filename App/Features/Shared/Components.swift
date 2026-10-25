@@ -55,6 +55,8 @@ enum Theme {
         case .gear: return .brown
         case .visas: return .pink
         case .shopping: return .yellow
+        case .travel: return .teal
+        case .necessities: return .mint
         case .other: return .gray
         }
     }
