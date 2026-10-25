@@ -213,6 +213,7 @@ extension View {
 
 extension URL {
     /// Opens TikTok links in the TikTok app if installed (universal link), else Safari.
+    @MainActor
     func openExternally() {
         UIApplication.shared.open(self)
     }

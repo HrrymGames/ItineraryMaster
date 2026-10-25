@@ -300,7 +300,7 @@ struct ExpenseEditor: View {
     @State private var date = Date()
     @State private var countryCode = ""
 
-    private let quickCategories: [BudgetCategory] = [.accommodation, .food, .transport, .activities, .shopping, .other, .flights, .visas]
+    private static let quickCategories: [BudgetCategory] = [.accommodation, .food, .transport, .activities, .shopping, .other, .flights, .visas]
 
     var body: some View {
         NavigationStack {
@@ -315,7 +315,7 @@ struct ExpenseEditor: View {
                 }
                 Section("Category") {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 10) {
-                        ForEach(quickCategories) { c in
+                        ForEach(Self.quickCategories) { c in
                             Button { category = c } label: {
                                 VStack(spacing: 4) {
                                     Image(systemName: c.symbol).font(.title3)

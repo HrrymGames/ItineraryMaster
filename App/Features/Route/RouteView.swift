@@ -148,8 +148,8 @@ struct RouteSummaryHeader: View {
                     Image(systemName: "location.fill").foregroundStyle(Theme.current)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("You're in \(cur.name)").font(.subheadline.bold())
-                        Text(off == 0 ? "Right on schedule" : off > 0 ? "\(off) day\(off == 1 ? "" : "s") ahead of plan" : "\(-off) day\(off == -1 ? "" : "s") behind plan")
-                            .font(.caption).foregroundStyle(off < 0 ? .red : .secondary)
+                        Text(scheduleText(off))
+                            .font(.caption).foregroundStyle(off < 0 ? Color.red : Color.secondary)
                     }
                     Spacer()
                     Button("Update", action: onReplan).buttonStyle(.bordered).controlSize(.small)
@@ -163,6 +163,13 @@ struct RouteSummaryHeader: View {
                 .buttonStyle(.bordered)
             }
         }
+    }
+
+    private func scheduleText(_ off: Int) -> String {
+        if off == 0 { return "Right on schedule" }
+        let n = abs(off)
+        let days = n == 1 ? "1 day" : "\(n) days"
+        return off > 0 ? "\(days) ahead of plan" : "\(days) behind plan"
     }
 
     private var weeksText: String {

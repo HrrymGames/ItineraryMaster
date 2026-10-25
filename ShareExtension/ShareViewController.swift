@@ -94,7 +94,7 @@ final class ShareModel: ObservableObject {
 
 struct ShareCard: View {
     @ObservedObject var model: ShareModel
-    private let accent = Color(red: 0.937, green: 0.329, blue: 0.420)
+    private var accent: Color { Color(red: 0.937, green: 0.329, blue: 0.420) }
 
     var body: some View {
         VStack {

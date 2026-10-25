@@ -144,10 +144,10 @@ final class CurrencyService: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var lastError: String?
 
-    private let key = "exchangeRates.v1"
+    private static let key = "exchangeRates.v1"
 
     private init() {
-        if let data = UserDefaults.standard.data(forKey: key),
+        if let data = UserDefaults.standard.data(forKey: Self.key),
            let saved = try? JSONDecoder().decode(ExchangeRates.self, from: data) {
             rates = saved.filling(from: .fallbackGBP)
         } else {
@@ -195,7 +195,7 @@ final class CurrencyService: ObservableObject {
         lastError = nil
         rates = fresh.filling(from: rates).filling(from: .fallbackGBP)
         if let data = try? JSONEncoder().encode(rates) {
-            UserDefaults.standard.set(data, forKey: key)
+            UserDefaults.standard.set(data, forKey: Self.key)
         }
     }
 

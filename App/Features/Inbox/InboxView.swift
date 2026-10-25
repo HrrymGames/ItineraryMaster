@@ -19,12 +19,14 @@ struct InboxView: View {
     private var filtered: [SavedVideo] {
         let q = search.lowercased()
         return videos.filter { v in
-            (category == nil || v.categories.contains(category!)) &&
-            (countryCode == nil || v.countryCodes.contains(countryCode!) || v.stop?.countryCode == countryCode) &&
-            (!onlyUnsorted || !v.isSorted) &&
-            (!onlyFavourites || v.isFavourite) &&
-            (q.isEmpty || v.caption.lowercased().contains(q) || v.author.lowercased().contains(q) || v.notes.lowercased().contains(q)
-                || v.placeNames.contains { $0.lowercased().contains(q) } || (v.stop?.name.lowercased().contains(q) ?? false))
+            if let category, !v.categories.contains(category) { return false }
+            if let countryCode, !v.countryCodes.contains(countryCode), v.stop?.countryCode != countryCode { return false }
+            if onlyUnsorted && v.isSorted { return false }
+            if onlyFavourites && !v.isFavourite { return false }
+            if q.isEmpty { return true }
+            if v.caption.lowercased().contains(q) || v.author.lowercased().contains(q) || v.notes.lowercased().contains(q) { return true }
+            if v.placeNames.contains(where: { $0.lowercased().contains(q) }) { return true }
+            return v.stop?.name.lowercased().contains(q) ?? false
         }
     }
 

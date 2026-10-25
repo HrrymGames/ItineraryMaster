@@ -18,7 +18,7 @@ struct MoreView: View {
     @State private var confirmReset = false
     @State private var message: String?
 
-    private let currencies = ["GBP", "EUR", "USD", "AUD", "NZD", "CAD"]
+    private static let currencies = ["GBP", "EUR", "USD", "AUD", "NZD", "CAD"]
 
     var body: some View {
         NavigationStack {
@@ -27,7 +27,7 @@ struct MoreView: View {
                     TextField("Trip name", text: $trip.name)
                     DatePicker("Start date", selection: $trip.startDate, displayedComponents: .date)
                     Picker("Home currency", selection: $trip.homeCurrency) {
-                        ForEach(currencies, id: \.self) { Text($0).tag($0) }
+                        ForEach(Self.currencies, id: \.self) { Text($0).tag($0) }
                     }
                     HStack {
                         Text("Total budget")
